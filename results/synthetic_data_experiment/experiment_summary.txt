@@ -1,0 +1,39 @@
+======================================================================
+SYNTHETIC DATA EXPERIMENT SUMMARY
+======================================================================
+
+Experimental Setup:
+  Features: 100
+  Classes: 5
+  Training samples: 1000
+  Test samples: 250
+  Covariance condition number: 1.00e+02
+  Signal location: Low-variance directions (last 10 dimensions)
+
+Results:
+  β values tested: [0.0, 0.125, 0.25, 0.375, 0.5]
+
+Baseline (β=0, isotropic RBF):
+  Test Accuracy: 0.3320
+  Kernel-Target Alignment: 0.2417
+  Effective Rank: 694.7
+  Condition Number: 4.53e+01
+
+Best configuration (β=0.500):
+  Test Accuracy: 0.7160
+  Kernel-Target Alignment: 0.2389
+  Effective Rank: 813.4
+  Condition Number: 1.00e+00
+
+Improvement: +38.40 percentage points
+
+Spectral flattening provides significant improvement!
+This confirms the theoretical prediction that partial flattening
+helps when class-discriminative signal lies in low-variance directions.
+
+Output Files:
+  - results/synthetic_data_experiment/results.csv
+  - results/synthetic_data_experiment/plots.png
+  - results/synthetic_data_experiment/experiment_summary.txt
+
+======================================================================

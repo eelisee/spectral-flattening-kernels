@@ -1,0 +1,21 @@
+test,beta_0_test,beta_05_test,improvement_pp,expected,result
+Basic - LOW-var,0.9,1.0,9.999999999999998,positive,PASS
+Basic - HIGH-var,0.444,0.408,-3.600000000000003,zero/negative,PASS
+Strength 1.0,0.436,0.824,38.8,positive,PASS
+Strength 2.0,0.724,0.98,25.6,positive,PASS
+Strength 3.0,0.932,1.0,6.799999999999995,positive,PASS
+Strength 5.0,1.0,1.0,0.0,positive,FAIL
+Anisotropy 10,0.996,0.988,-0.8000000000000007,positive,PASS
+Anisotropy 100,0.936,0.992,5.599999999999994,positive,PASS
+Anisotropy 1000,0.452,0.996,54.400000000000006,positive,PASS
+Anisotropy 10000,0.184,0.976,79.2,positive,PASS
+Samples/class 25,0.324,0.552,22.800000000000004,positive,PASS
+Samples/class 50,0.848,0.976,12.8,positive,PASS
+Samples/class 100,0.8,0.964,16.39999999999999,positive,PASS
+Samples/class 200,0.908,1.0,9.199999999999998,positive,PASS
+Easy (default) LOW-var,0.956,1.0,4.400000000000004,positive,PASS
+Easy (default) HIGH-var,0.372,0.352,-2.0000000000000018,zero/negative,PASS
+"CUB-like (30 samples/class, κ=1000) LOW-var",0.22,0.556,33.60000000000001,positive,PASS
+"CUB-like (30 samples/class, κ=1000) HIGH-var",0.22,0.224,0.40000000000000036,zero/negative,PASS
+"Hard (25 samples/class, weak signal, κ=1000) LOW-var",0.188,0.216,2.8,positive,PASS
+"Hard (25 samples/class, weak signal, κ=1000) HIGH-var",0.208,0.2,-0.7999999999999979,zero/negative,PASS

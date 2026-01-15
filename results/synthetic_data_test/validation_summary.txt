@@ -1,0 +1,72 @@
+====================================================================================================
+SYNTHETIC DATA VALIDATION
+Testing spectral flattening theory across multiple scenarios
+====================================================================================================
+
+[TEST 1] BASIC VALIDATION: Signal Location Effect
+----------------------------------------------------------------------------------------------------
+LOW-variance signal:
+  Baseline (β=0.0): Test accuracy = 0.900, CV score = 0.849
+  Flattened (β=0.5): Test accuracy = 1.000, CV score = 0.992
+  Improvement: +10.0 percentage points
+
+HIGH-variance signal:
+  Baseline (β=0.0): Test accuracy = 0.444, CV score = 0.440
+  Flattened (β=0.5): Test accuracy = 0.408, CV score = 0.383
+  Improvement: -3.6 percentage points
+
+[TEST 2] SIGNAL STRENGTH SENSITIVITY
+----------------------------------------------------------------------------------------------------
+Testing with varying signal strengths (LOW-var signal)
+  Signal strength 1.0: Baseline (β=0.0) = 0.436, Flattened (β=0.5) = 0.824, Change = +38.8pp
+  Signal strength 2.0: Baseline (β=0.0) = 0.724, Flattened (β=0.5) = 0.980, Change = +25.6pp
+  Signal strength 3.0: Baseline (β=0.0) = 0.932, Flattened (β=0.5) = 1.000, Change = +6.8pp
+  Signal strength 5.0: Baseline (β=0.0) = 1.000, Flattened (β=0.5) = 1.000, Change = +0.0pp
+
+[TEST 3] ANISOTROPY SENSITIVITY
+----------------------------------------------------------------------------------------------------
+Testing with varying condition numbers (LOW-var signal)
+  Condition number κ=   10: Baseline (β=0.0) = 0.996, Flattened (β=0.5) = 0.988, Change = -0.8pp
+  Condition number κ=  100: Baseline (β=0.0) = 0.936, Flattened (β=0.5) = 0.992, Change = +5.6pp
+  Condition number κ= 1000: Baseline (β=0.0) = 0.452, Flattened (β=0.5) = 0.996, Change = +54.4pp
+  Condition number κ=10000: Baseline (β=0.0) = 0.184, Flattened (β=0.5) = 0.976, Change = +79.2pp
+
+[TEST 4] SAMPLE SIZE SENSITIVITY
+----------------------------------------------------------------------------------------------------
+Testing with varying samples per class (LOW-var signal)
+   25 samples per class: Baseline (β=0.0) = 0.324, Flattened (β=0.5) = 0.552, Change = +22.8pp
+   50 samples per class: Baseline (β=0.0) = 0.848, Flattened (β=0.5) = 0.976, Change = +12.8pp
+  100 samples per class: Baseline (β=0.0) = 0.800, Flattened (β=0.5) = 0.964, Change = +16.4pp
+  200 samples per class: Baseline (β=0.0) = 0.908, Flattened (β=0.5) = 1.000, Change = +9.2pp
+
+[TEST 5] REALISTIC SCENARIOS
+----------------------------------------------------------------------------------------------------
+Testing configurations matching real dataset properties:
+  - CUB-200-2011 has ~30 samples/class (5994 train / 200 classes)
+  - Pretrained features typically have κ ~ 10^3 to 10^4
+
+
+  Easy (default):
+    LOW-variance signal:  Baseline (β=0.0) = 0.956, Flattened (β=0.5) = 1.000, Change = +4.4pp
+    HIGH-variance signal: Baseline (β=0.0) = 0.372, Flattened (β=0.5) = 0.352, Change = -2.0pp
+
+  CUB-like (30 samples/class, κ=1000):
+    LOW-variance signal:  Baseline (β=0.0) = 0.220, Flattened (β=0.5) = 0.556, Change = +33.6pp
+    HIGH-variance signal: Baseline (β=0.0) = 0.220, Flattened (β=0.5) = 0.224, Change = +0.4pp
+
+  Hard (25 samples/class, weak signal, κ=1000):
+    LOW-variance signal:  Baseline (β=0.0) = 0.188, Flattened (β=0.5) = 0.216, Change = +2.8pp
+    HIGH-variance signal: Baseline (β=0.0) = 0.208, Flattened (β=0.5) = 0.200, Change = -0.8pp
+
+====================================================================================================
+SUMMARY
+====================================================================================================
+
+Tests passed: 19/20 (95.0%)
+
+Results saved to: results/synthetic_data_test/validation_results.csv
+
+Key Findings:
+  LOW-variance signal scenarios:  Average change = +12.7pp
+  HIGH-variance signal scenarios: Average change = -1.5pp
+====================================================================================================

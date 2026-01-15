@@ -1,0 +1,82 @@
+EVALUATION SUMMARY: VIT_B_16
+================================================================================
+Dataset: CUB-200-2011
+Generated: 2026-01-15 01:22:44
+
+DATASET STATISTICS
+--------------------------------------------------------------------------------
+Training samples:   5994
+Test samples:       5794
+Feature dimension:  768
+Number of classes:  200
+
+SPECTRAL PROPERTIES (ORIGINAL FEATURES)
+--------------------------------------------------------------------------------
+Condition number:   9.54e+03
+Effective rank:     42.0 / 768
+Top 10 PCs variance: 39.37%
+Top 50 PCs variance: 67.79%
+Top 100 PCs variance: 77.48%
+
+GRID SEARCH CONFIGURATION
+--------------------------------------------------------------------------------
+β values tested:    [0.0, 0.025, 0.05, 0.075, 0.1, 0.125]
+C values tested:    [0.01, 0.05, 0.1, 0.5, 1.0]
+CV folds:           3
+Adaptive σ:         Yes (median_distance / 3.0)
+Total configs:      6
+
+BASELINE (β=0.0, RBF KERNEL)
+--------------------------------------------------------------------------------
+σ (adaptive):       7.00
+C (optimal):        1.00
+CV Score:           0.5734
+Test Accuracy:      0.6334
+Train Accuracy:     0.9888
+Balanced Accuracy:  0.6355
+F1 Macro:           0.6461
+Kernel Alignment:   0.2522
+Effective Rank:     491.1
+Condition Number:   9.54e+03
+
+BEST CONFIGURATION (by CV score)
+--------------------------------------------------------------------------------
+β (optimal):        0.000
+σ (adaptive):       7.00
+C (optimal):        1.00
+CV Score:           0.5734
+Test Accuracy:      0.6334
+Train Accuracy:     0.9888
+Balanced Accuracy:  0.6355
+F1 Macro:           0.6461
+Kernel Alignment:   0.2522
+Effective Rank:     491.1
+Condition Number:   9.54e+03
+
+BEST TEST ACCURACY (may be overfitted)
+--------------------------------------------------------------------------------
+β:                  0.000
+Test Accuracy:      0.6334
+Train Accuracy:     0.9888
+CV Score:           0.5734
+⚠ Train-Test gap:   35.5pp (overfitting indicator)
+
+IMPROVEMENT OVER BASELINE
+--------------------------------------------------------------------------------
+Accuracy:           +0.00 pp
+F1 Macro:           +0.00 pp
+Alignment:          0.0000
+Cond. Num. Reduction: 1.00×
+
+PERFORMANCE ACROSS β VALUES
+--------------------------------------------------------------------------------
+β        σ          C        CV Score   Test Acc   Train Acc   Gap       
+--------------------------------------------------------------------------------
+0.000    7.00       1.00     0.5734     0.6334     0.9888      35.5      
+0.025    6.91       1.00     0.5691     0.6281     0.9912      36.3      
+0.050    6.84       1.00     0.5632     0.6208     0.9925      37.2      
+0.075    6.80       1.00     0.5584     0.6113     0.9945      38.3      
+0.100    6.80       1.00     0.5546     0.6029     0.9953      39.2      
+0.125    6.83       1.00     0.5511     0.5929     0.9960      40.3      
+
+================================================================================

@@ -1,0 +1,103 @@
+================================================================================
+COVARIANCE STRUCTURE TEST - SUMMARY
+================================================================================
+
+Test Setup:
+  Signal construction: Δ = U α (in eigenspace)
+  Covariance types: 4 (random, toeplitz, block, lowrank+noise)
+  Signal profiles: 3 (low-variance, high-variance, power-law)
+  Total scenarios: 12
+
+--------------------------------------------------------------------------------
+Results by Scenario:
+--------------------------------------------------------------------------------
+
+RANDOM Covariance:
+  Low Var:
+    Baseline (β=0.0): 0.2080
+    Best (β=0.500): 0.2720
+    Change: +6.40pp
+  High Var:
+    Baseline (β=0.0): 0.2040
+    Best (β=0.000): 0.2040
+    Change: +0.00pp
+  Power Law:
+    Baseline (β=0.0): 0.1840
+    Best (β=0.500): 0.2800
+    Change: +9.60pp
+
+TOEPLITZ Covariance:
+  Low Var:
+    Baseline (β=0.0): 0.2280
+    Best (β=0.500): 0.3160
+    Change: +8.80pp
+  High Var:
+    Baseline (β=0.0): 0.1880
+    Best (β=0.500): 0.2080
+    Change: +2.00pp
+  Power Law:
+    Baseline (β=0.0): 0.1960
+    Best (β=0.500): 0.2960
+    Change: +10.00pp
+
+BLOCK Covariance:
+  Low Var:
+    Baseline (β=0.0): 0.2200
+    Best (β=0.500): 0.3640
+    Change: +14.40pp
+  High Var:
+    Baseline (β=0.0): 0.2120
+    Best (β=0.250): 0.2160
+    Change: +0.40pp
+  Power Law:
+    Baseline (β=0.0): 0.2200
+    Best (β=0.500): 0.3200
+    Change: +10.00pp
+
+LOWRANK_NOISE Covariance:
+  Low Var:
+    Baseline (β=0.0): 0.2320
+    Best (β=0.500): 0.4600
+    Change: +22.80pp
+  High Var:
+    Baseline (β=0.0): 0.1920
+    Best (β=0.375): 0.2000
+    Change: +0.80pp
+  Power Law:
+    Baseline (β=0.0): 0.2040
+    Best (β=0.500): 0.4760
+    Change: +27.20pp
+
+================================================================================
+KEY FINDINGS:
+================================================================================
+
+1. LOW-VARIANCE SIGNAL SCENARIOS:
+   random: +6.40pp
+   toeplitz: +8.80pp
+   block: +14.40pp
+   lowrank_noise: +22.80pp
+   Average: +13.10pp
+
+2. HIGH-VARIANCE SIGNAL SCENARIOS:
+   random: +0.00pp
+   toeplitz: +2.00pp
+   block: +0.40pp
+   lowrank_noise: +0.80pp
+   Average: +0.80pp
+
+3. POWER-LAW SIGNAL SCENARIOS:
+   random: +9.60pp
+   toeplitz: +10.00pp
+   block: +10.00pp
+   lowrank_noise: +27.20pp
+   Average: +14.20pp
+
+================================================================================
+Output Files:
+  - results/covariance_structure_test/results.csv
+  - results/covariance_structure_test/performance_grid.png
+  - results/covariance_structure_test/improvement_heatmap.png
+  - results/covariance_structure_test/summary.txt
+
+================================================================================
