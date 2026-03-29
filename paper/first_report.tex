@@ -1,0 +1,172 @@
+\documentclass{article}
+
+\usepackage{neurips_2020}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{hyperref}
+
+\title{Spectral Flattening for Kernel SVMs:\\
+When Covariance-Adaptive Kernels Help --- and When They Fail}
+
+\author{
+Elise Wolf \\
+ENSAE Paris \\
+\texttt{elisemarie.wolf@ensae.fr}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Kernel methods rely on distance computations in feature space, where standard Gaussian (RBF) kernels implicitly weight directions by their empirical variance. In highly anisotropic feature representations, this can suppress discriminative information if class separation occurs along low-variance directions. We propose \emph{spectral flattening}, a one-parameter family of covariance-adaptive transformations that interpolates between the standard RBF kernel and full whitening. We show theoretically that spectral flattening reduces covariance condition numbers as $\kappa(\Sigma)^{1-2\beta}$ and amplifies separation when discriminative signal aligns with low-variance modes. Synthetic experiments confirm these predictions, yielding up to $+21.6$ percentage points in accuracy. However, extensive evaluation on pretrained deep features for fine-grained image classification (CUB-200-2011 and Stanford Cars) reveals minimal or negative gains for ResNet and ViT embeddings, with only modest improvements for ConvNeXt. Our results demonstrate that discriminative signal in pretrained representations predominantly resides in high-variance directions, causing covariance-adaptive kernels to amplify noise rather than signal. These negative findings clarify the spectral structure of modern deep features and delineate when covariance-aware kernels are beneficial versus harmful.
+\end{abstract}
+
+\section{Introduction}
+
+Kernel methods, and in particular kernel Support Vector Machines (SVMs), remain among the most theoretically grounded tools in machine learning \cite{scholkopf2002learning}. The Gaussian (RBF) kernel,
+\[
+k(x,x') = \exp\left(-\frac{\|x-x'\|^2}{2\sigma^2}\right),
+\]
+is widely used due to its simplicity and universal approximation properties. Implicit in this formulation is a crucial assumption: Euclidean distances in feature space provide a meaningful measure of similarity.
+
+In practice, however, modern feature representations—especially embeddings extracted from pretrained deep networks—exhibit extreme \emph{spectral anisotropy}. Their covariance spectra are heavy-tailed, with a small number of principal components capturing most of the variance \cite{papyan2020prevalence}. As a result, standard RBF kernels overweight high-variance directions and suppress low-variance ones. If discriminative information lies in these suppressed directions, classification performance can degrade substantially.
+
+This observation motivates the central question of this work:
+
+\begin{quote}
+\emph{Can covariance-adaptive kernel transformations recover discriminative signal hidden in low-variance directions—and do such benefits transfer to real pretrained representations?}
+\end{quote}
+
+\section{Spectral Flattening Kernels}
+
+\subsection{Motivation}
+
+Consider a simple scenario where class separation occurs primarily along a low-variance direction, while high-variance dimensions contain mostly noise. Standard RBF kernels compute distances dominated by the latter, effectively drowning out the signal. A natural remedy is to rescale feature dimensions according to their variance, partially or fully compensating for spectral imbalance.
+
+\subsection{Definition}
+
+Let $X \in \mathbb{R}^{n \times d}$ be centered feature vectors with empirical covariance
+\[
+\Sigma = \frac{1}{n} X^\top X = U \Lambda U^\top,
+\]
+where $\Lambda = \text{diag}(\lambda_1,\dots,\lambda_d)$ with $\lambda_1 \ge \cdots \ge \lambda_d$.
+
+\begin{definition}[Spectral Flattening]
+For $\beta \in [0,0.5]$, define the transformation
+\[
+T_\beta = U \Lambda^{-\beta} U^\top.
+\]
+The corresponding flattened kernel is
+\[
+k_\beta(x,x') = \exp\left(-\frac{\|T_\beta(x-x')\|^2}{2\sigma^2}\right).
+\]
+\end{definition}
+
+This family interpolates smoothly between:
+\begin{itemize}
+    \item $\beta=0$: standard RBF kernel,
+    \item $\beta=0.5$: full whitening (Mahalanobis kernel).
+\end{itemize}
+
+\subsection{Theoretical Properties}
+
+\begin{proposition}[Covariance Transformation]
+Under $T_\beta$, the effective covariance becomes
+\[
+\Sigma_\beta = T_\beta \Sigma T_\beta^\top = U \Lambda^{1-2\beta} U^\top.
+\]
+\end{proposition}
+
+\begin{proposition}[Condition Number Reduction]
+The condition number satisfies
+\[
+\kappa(\Sigma_\beta) = \kappa(\Sigma)^{1-2\beta}.
+\]
+For any $\beta>0$, spectral flattening strictly improves conditioning.
+\end{proposition}
+
+Thus, spectral flattening continuously trades off variance normalization against preservation of dominant directions, offering a principled control knob for kernel geometry.
+
+\section{Experimental Setup}
+
+\subsection{Synthetic Validation}
+
+We first validate spectral flattening in a controlled setting where its assumptions are explicitly satisfied. We construct a 100-dimensional dataset with anisotropic covariance ($\kappa(\Sigma)=100$) and embed class-discriminative signal exclusively in the lowest-variance dimensions. Under this design, increasing $\beta$ should systematically improve performance.
+
+\subsection{Real-World Benchmarks}
+
+We evaluate spectral flattening on fine-grained image classification using fixed embeddings extracted from ImageNet-pretrained models:
+\begin{itemize}
+    \item \textbf{ResNet50} (2048D),
+    \item \textbf{ViT-B/16} (768D),
+    \item \textbf{ConvNeXt-Base} (1024D).
+\end{itemize}
+
+Experiments are conducted on:
+\begin{itemize}
+    \item \textbf{CUB-200-2011} (200 bird species),
+    \item \textbf{Stanford Cars} (196 vehicle models).
+\end{itemize}
+
+Kernel bandwidths are adapted per $\beta$ using the median-distance heuristic, and SVM regularization is selected via cross-validation.
+
+\section{Results}
+
+\subsection{Synthetic Data}
+
+On synthetic data, spectral flattening behaves exactly as predicted. Accuracy improves monotonically from $70.4\%$ at $\beta=0$ to $92.0\%$ at $\beta=0.5$, confirming that flattening successfully amplifies discriminative low-variance structure. Diagnostic metrics (condition number, effective rank) align tightly with theoretical predictions.
+
+\subsection{CUB-200-2011}
+
+In stark contrast, results on real pretrained features reveal a consistent negative pattern:
+\begin{itemize}
+    \item \textbf{ResNet50} and \textbf{ViT}: best performance at $\beta=0$, with monotonic degradation as $\beta$ increases.
+    \item \textbf{ConvNeXt}: modest improvement of $+1.6$pp at $\beta \approx 0.1$.
+\end{itemize}
+
+Despite extreme spectral anisotropy (condition numbers $>10^4$), flattening fails to recover useful signal for most architectures.
+
+\subsection{Stanford Cars}
+
+Stanford Cars exposes a deeper limitation: kernel SVMs massively overfit pretrained features, achieving near-perfect training accuracy but test performance close to random guessing. Spectral flattening yields absolute improvements (up to $+11$pp) but remains far from usable accuracy. The method mitigates but cannot resolve the fundamental mismatch between kernel capacity and limited sample size.
+
+\section{Discussion}
+
+This work delivers a clear and instructive message: \emph{covariance-adaptive kernels help only when their core assumption holds}. In synthetic settings where discriminative signal is deliberately placed in low-variance directions, spectral flattening performs exactly as theory predicts. However, real pretrained representations violate this assumption.
+
+Our experiments strongly suggest that modern deep networks concentrate discriminative information in high-variance modes. Flattening these representations suppresses meaningful signal while amplifying noise, leading to degraded generalization. The modest gains observed for ConvNeXt hint that architectural design may influence how information is distributed spectrally, but the effect is small.
+
+More broadly, these results highlight a limitation of kernel methods in small-sample, high-dimensional regimes. Even with careful covariance regularization, kernel SVMs readily overfit fine-grained datasets with hundreds of classes. Spectral flattening can reshape kernel geometry, but it cannot substitute for inductive biases introduced by end-to-end fine-tuning or linear models with strong regularization.
+
+Negative results are often underreported, yet they are essential for scientific progress. Our findings delineate the boundary between elegant theoretical ideas and their practical applicability, and clarify when covariance-aware kernels should—and should not—be expected to help.
+
+\section{Discussion}
+
+Our experiments reveal a sharp and instructive contrast between theory and practice. Spectral flattening behaves exactly as predicted in controlled synthetic settings, yet largely fails on real pretrained representations across architectures and datasets. This discrepancy is not accidental—it follows directly from a violated core assumption.
+
+\paragraph{When spectral flattening works.}
+On synthetic data where discriminative signal is deliberately embedded in low-variance directions, spectral flattening yields dramatic gains (+21.6 percentage points). All diagnostic measures—condition number reduction, effective rank increase, and kernel geometry—match theoretical predictions. These results validate both our implementation and the mathematical soundness of the method.
+
+\paragraph{Why pretrained features break the method.}
+Spectral flattening assumes that useful discriminative information lies in low-variance directions. Our results strongly suggest that this assumption is systematically violated for ImageNet-pretrained representations. Across ResNet50 and ViT embeddings, performance is maximized at $\beta=0$ and degrades monotonically as flattening increases. Despite extreme spectral anisotropy, activating low-variance dimensions fails to recover signal and instead amplifies noise.
+
+This behavior is consistent with how supervised deep networks are trained. Cross-entropy optimization explicitly encourages features that vary strongly across classes; consequently, discriminative information concentrates in high-variance principal components. Low-variance directions predominantly encode residual noise or task-irrelevant variation. Spectral flattening therefore inverts the signal-to-noise ratio: it suppresses informative directions while boosting uninformative ones.
+
+\paragraph{The ConvNeXt exception.}
+ConvNeXt exhibits modest improvements (+1.6pp on CUB, +6.2pp on Stanford Cars), suggesting that extreme spectral compression may trap some weak discriminative signal in suppressed modes. However, these gains are small compared to synthetic results and do not alter the overall conclusion. Even for ConvNeXt, most discriminative power remains concentrated in high-variance directions, limiting the benefit of flattening.
+
+\paragraph{Kernel SVM failure on Stanford Cars.}
+The Stanford Cars dataset exposes a deeper limitation. All architectures exhibit catastrophic overfitting: near-perfect training accuracy but test performance close to random guessing. Spectral flattening provides weak regularization by increasing effective rank, yielding small absolute improvements, but cannot resolve the fundamental mismatch between high-capacity kernel models and small per-class sample sizes. This highlights a structural incompatibility between kernel SVMs and fine-grained classification with pretrained features.
+
+\paragraph{Implications and lessons.}
+Our findings clarify when covariance-adaptive kernels should—and should not—be expected to help. Spectral flattening is effective only when discriminative signal resides in low-variance directions, as may occur under domain shift, in unsupervised or generative representations, or in tasks with known low-variance signal. Standard supervised transfer learning does not fall into this category.
+
+More broadly, this work underscores the importance of controlled synthetic validation and honest reporting of negative results. The failure of spectral flattening on pretrained features is itself informative: it reveals how modern representations organize discriminative information and cautions against blindly applying variance-based reweighting methods. Understanding where signal lives is essential before attempting to reshape feature geometry.
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}

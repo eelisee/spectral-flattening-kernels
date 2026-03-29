@@ -1,0 +1,376 @@
+\section{Implementation Plan}
+
+In this section we describe in detail how we will implement the proposed method, how we will process and use the dataset(s), how we will design experiments, and how we will ensure reproducibility and satisfy the project instruction criteria (personal implementation, code, dataset, hyper‑parameter selection, plots, error bars, etc.).
+
+\subsection{Overview of Implementation Steps}
+
+We will carry out the following major steps:
+\begin{enumerate}[noitemsep]
+  \item Training a classification model and recording a parameter trajectory.
+  \item Estimating Hessian matrices (or stochastic approximations) along the trajectory.
+  \item Computing the trajectory‐averaged Hessian and defining the posterior covariance.
+  \item Decomposing the Gaussian KL divergence into top‑subspace alignment, residual complexity, and curvature terms.
+  \item Estimating stochastic trace and log‐determinant terms via the Hutchinson estimator.
+  \item Computing the proposed bound for each experimental run.
+  \item Conducting systematic experiments over hyper‐parameters (posterior scaling constant \(c_Q\), number of Hutchinson samples \(m\), trajectory length \(T\), projection dimension \(r\), regularization parameter \(\lambda\)).
+  \item Collecting results, plotting figures and tables (including error bars), and comparing with baseline bounds (standard PAC‑Bayes or Laplace bounds).
+  \item Packaging code with a detailed readme, linking to a GitHub repo, documenting what is original, what is adapted, and how to reproduce the results.
+\end{enumerate}
+
+\subsection{Detailed Steps and Formulas}
+
+\paragraph{1. Parameter Trajectory via Optimization.}  
+We train a classification model (for example, logistic regression or a small neural network) on the chosen dataset, using an optimizer such as SGD. Denote the parameter vector after \(t\) updates (or epochs) by:
+\[
+\widehat w_t,\quad t=1,2,\dots,T.
+\]
+We store the sequence \(\{\widehat w_t\}_{t=1}^T\) for subsequent curvature estimation.
+
+\paragraph{2. Hessian (or Approximate) Computation.}  
+At each step \(t\), we compute (or approximate) the Hessian of the empirical loss:
+\[
+H_t = \nabla^2 R_S(\widehat w_t),
+\]
+where
+\[
+R_S(w) = \frac1n\sum_{i=1}^n \ell(w;(x_i,y_i)).
+\]
+If full Hessian is too expensive, we may use a stochastic Hessian‐vector product approximation or sub‑sampled Hessian.
+
+\paragraph{3. Trajectory‐Averaged Hessian.}  
+Define
+\[
+\overline H_T = \frac1T \sum_{t=1}^T H_t.
+\]
+We then define the posterior covariance matrix:
+\[
+\Sigma_Q = c_Q^2 \big(\overline H_T + \lambda I\big)^{-1},
+\]
+with user‐specified constants \(c_Q>0\) and \(\lambda>0\) for stability.
+
+\paragraph{4. Gaussian Posterior KL Decomposition.}  
+Assume a Gaussian prior \(P = \mathcal N(\mu_P,\Sigma_P)\) and posterior \(Q = \mathcal N(\mu_Q,\Sigma_Q)\). Then
+\[
+\mathrm{KL}(Q\|P) = \frac12\Big[ \mathrm{tr}(\Sigma_P^{-1}\Sigma_Q) + (\mu_P-\mu_Q)^\top \Sigma_P^{-1}(\mu_P-\mu_Q) - d + \log\frac{\det \Sigma_P}{\det \Sigma_Q} \Big].
+\]
+We then decompose into:
+\[
+A_r = \|\Pi_r(\mu_Q-\mu_P)\|_{\Sigma_P^{-1}}^2,
+\qquad
+R_r = \mathrm{tr}(\Sigma_P^{-1}\Sigma_Q) - \mathrm{tr}(\Pi_r\Sigma_P^{-1}\Sigma_Q\Pi_r),
+\]
+and include a curvature term via:
+\[
+\widehat{\mathrm{FD}}_T = \frac1T \sum_{t=1}^T \frac1m \sum_{i=1}^m z_{t,i}^\top \log\big(I + \lambda^{-1} H_t\big)\,z_{t,i},\quad z_{t,i}\sim \mathcal N(0,I).
+\]
+Then the bound takes the form
+\[
+\mathbb E_{w\sim Q}[R(w)] \;\le\; R_S(Q) + \sqrt{ \frac{\mathrm{KL}(Q\|P) + \epsilon + \log(1/\delta) }{2n} }.
+\]
+Here \(\epsilon\) accounts for stochastic estimation errors.
+
+\paragraph{5. Hutchinson Estimator for Trace and Log‐Det.}  
+For a symmetric matrix \(M\in\mathbb R^{d\times d}\), the trace may be estimated via:
+\[
+\mathrm{tr}(M) \approx \frac1m\sum_{i=1}^m z_i^\top M z_i,\qquad z_i\sim\mathcal N(0,I).
+\]
+Similarly,
+\[
+\mathrm{tr}\big(\log(I+\lambda^{-1}H_t)\big) \approx \frac1m \sum_{i=1}^m z_i^\top \log(I+\lambda^{-1}H_t)\,z_i.
+\]
+In implementation we must choose \(m\) large enough to control variance (and report error bars).
+
+\subsection{Dataset Usage and Preprocessing}
+
+We will use the standard MNIST dataset as one of our experiments (and optionally a second tabular dataset). Some implementation details:
+
+\begin{itemize}[noitemsep]
+  \item The MNIST dataset comprises 60\,000 training images and 10\,000 testing images of handwritten digits (0–9), each image of size \(28\times28\) in grayscale.
+  \item We will treat it as a binary classification problem for simplicity (to match the course content’s binary‐classification focus). For example, we may select a subset of classes (e.g., digit “0” vs. “1”), or convert labels \(\{0,1\}\) vs.\ others.  
+  \item Data loading in Python (e.g., via Keras):  
+\[
+(x_{\text{train}},y_{\text{train}}),(x_{\text{test}},y_{\text{test}}) = \texttt{keras.datasets.mnist.load\_data()}
+\]
+with shapes \((60000,28,28)\), \((10000,28,28)\). 
+  \item Preprocessing steps:
+    \begin{itemize}[noitemsep]
+      \item Normalize pixel values to \([0,1]\), e.g.\ divide by 255.  
+      \item Flatten each image into a vector in \(\mathbb R^{784}\) for models like logistic regression, or keep \(28\times28\) shape for small neural networks.  
+      \item If using binary classification, map labels \(y_i\in\{0,1\}\) to e.g.\ class “0” vs class “1”, and discard other labels (or treat one‐vs‐rest).  
+      \item Split a validation set from training data for hyperparameter tuning / cross‐validation (e.g., take 10\,000 examples as validation).  
+    \end{itemize}
+  \item For our method, the dimension \(d\) of the parameter vector \(w\) will depend on the model chosen: e.g., for logistic regression on 784 features, \(d=784\).  
+  \item We will train the model, record \(\widehat w_t\) at each epoch or every \(K\) mini‐batches (e.g., every epoch), up to trajectory length \(T\).  
+  \item After training, we compute Hessians \(H_t\) along the trajectory (or approximate them) and compute \(\overline H_T\) for the bound computations.
+\end{itemize}
+
+\subsection{Hyper‐Parameter Tuning and Experimental Design}
+
+Key hyper‐parameters and experimental choices:
+
+\begin{itemize}[noitemsep]
+  \item Posterior scaling constant \(c_Q\): we will test a grid of values (e.g., \(c_Q\in\{0.1,\,1,\,10\}\)).  
+  \item Regularization parameter \(\lambda\) in \(\Sigma_Q=(\overline H_T+\lambda I)^{-1}\): test e.g.\ \(\lambda\in\{10^{-3},10^{-2},10^{-1}\}\).  
+  \item Projection dimension \(r\) for top‐subspace: test choices \(r\in\{10,50,100\}\) depending on \(d\).  
+  \item Hutchinson sample number \(m\): test e.g.\ \(m\in\{50,100,200\}\). Report the variance of the estimates and plot error bars.  
+  \item Trajectory length \(T\): test e.g.\ \(T\in\{50,100,200\}\) epochs (or snapshot counts) and compare bound tightness vs cost.  
+\end{itemize}
+
+We will cross‐validate hyper‐parameters on the validation set, and then report final results on the held‐out test set. For each setting we will compute the bound:
+\[
+\text{Bound} = R_S(Q) + \sqrt{\frac{\mathrm{KL}(Q\|P) + \epsilon + \log(1/\delta)}{2n}},
+\]
+and compare with the actual test risk \(R_{\text{test}} = \frac1{n_{\text{test}}}\sum_{i=1}^{n_{\text{test}}} \ell(w^*;x_i,y_i)\), where \(w^*=\mu_Q\) (for Gaussian posterior take mean). We will generate plots of bound vs actual risk, components of KL (top‐subspace, residual, curvature) as functions of \(c_Q,m,T\), etc.
+
+\subsection{Code, Reproducibility and Documentation}
+
+To meet the project instruction criteria:
+
+\begin{itemize}[noitemsep]
+  \item We will create a GitHub repository containing all code, scripts, data preprocessing, model‐training, Hessian estimation, bound computation, plotting.  
+  \item A detailed README will explain how to reproduce everything: dependencies (Python version, packages), how to download the dataset, how to run preprocessing, how to train the model, how to run bound estimation, how to generate figures and tables.  
+  \item We will clearly document which parts of the code are original (our Hessian extraction, KL decomposition, Hutchinson estimator integration) and which parts are adapted or inspired (e.g., standard logistic regression training). We will include comments or a separate “code‑notice” file.  
+  \item Our code will be modular (data loader, model trainer, trajectory recorder, Hessian estimator, bound calculator, experimental runner).  
+  \item All results (figures, tables) will include error bars for stochastic estimates (e.g., different random seeds, different Hutchinson runs), and we will report multiple runs (e.g., 5 seeds) to demonstrate variance.  
+  \item We will set a fixed random seed for reproducibility, use cross‐validation for hyperparameter selection, and keep separate train/validation/test splits.  
+\end{itemize}
+
+\subsection{Baseline Methods and Comparison}
+
+As required by the project instructions, we will implement one or more baseline methods to compare against our proposed bound:
+
+\begin{itemize}[noitemsep]
+  \item A classical PAC‐Bayes bound with a “simple” isotropic Gaussian posterior (no Hessian‐averaging).  
+  \item A Laplace approximation bound (posterior covariance equal to \((H + \lambda I)^{-1}\) at final parameter \(w^*\)).  
+  \item We will plot each bound across hyper‐parameter settings and compare their tightness and behaviour relative to actual test risk.  
+\end{itemize}
+
+\subsection{Potential Challenges and Mitigation}
+
+\begin{itemize}[noitemsep]
+  \item Hessian computation may be computationally expensive for high‑dimensional models. \emph{Mitigation:} use sub‑sampling, Hessian‐vector products, or restrict to smaller model (e.g., logistic regression or small MLP).  
+  \item The assumption of independence of Hessians along the trajectory is heuristic—this may affect concentration and bound tightness. We will report this explicitly in our write‑up (honesty requirement).  
+  \item The stochastic estimation (Hutchinson) may have high variance for small \(m\). \emph{Mitigation:} run multiple seeds, report error bars, and study how \(m\) affects variance.  
+  \item The bound may be loose in practice — this is acceptable as long as we explore and explain why (per instructions).  
+\end{itemize}
+
+\subsection{Summary}
+
+In summary, we will implement our method in a fully reproducible manner, adapt a standard dataset for binary classification, record parameter trajectories, estimate curvature, compute our trajectory‐aware PAC‑Bayes bound, compare with baselines, and document everything in code and report. The implementation meets the requirement of non trivial original code (Hessian estimation, KL decomposition, stochastic trace/log‑det estimation) and includes real‐data experiments with multiple figures/tables, error bars, cross‐validation, and hyper‐parameter exploration.
+
+\section{Empirical Analysis: Expected Results and Interpretation}
+
+In this section we outline the types of results we expect to obtain based on our implementation plan and the trajectory-aware PAC-Bayes framework. Although numerical experiments have not yet been performed, we describe how results can be interpreted, why they are expected, and how they relate to the underlying theoretical considerations.
+
+\subsection{Expected Quantities}
+
+From our implementation, we expect to generate the following primary outputs:
+
+\begin{itemize}[noitemsep]
+    \item \textbf{Parameter trajectory $\{\widehat w_t\}_{t=1}^T$:} A sequence of parameter vectors over training iterations, reflecting the dynamics of the optimizer (SGD). We expect the trajectory to stabilize near a local minimum, with smaller changes in parameters as training progresses.
+    
+    \item \textbf{Trajectory-averaged Hessian $\overline H_T$:} This matrix captures the average curvature of the empirical loss along the trajectory. We expect that directions corresponding to large eigenvalues of $\overline H_T$ indicate parameters that strongly influence the loss, while small eigenvalues correspond to flat directions.
+    
+    \item \textbf{Posterior covariance $\Sigma_Q$:} Constructed as $\Sigma_Q = c_Q^2 (\overline H_T + \lambda I)^{-1}$, the posterior variance is expected to be large along flat directions and small along steep directions of the loss landscape. This captures the intuition that parameters in flat directions are less certain.
+    
+    \item \textbf{KL decomposition:} The top-subspace alignment $A_r$, residual spectral complexity $R_r$, and stochastic curvature $\widehat{\mathrm{FD}}_T$. We expect $A_r$ to dominate when the top-$r$ directions of the posterior align well with the prior, while $R_r$ quantifies contributions from residual directions. The curvature term $\widehat{\mathrm{FD}}_T$ reflects the contribution of local curvature along the trajectory.
+    
+    \item \textbf{Trajectory-aware PAC-Bayes bound:} The overall bound
+    \[
+    R(Q) \le R_S(Q) + \sqrt{\frac{\mathrm{KL}(Q\|P) + \epsilon + \log(1/\delta)}{2n}}
+    \]
+    is expected to decrease with increasing trajectory length $T$ (due to more accurate curvature averaging) and to be tighter when the posterior scaling constant $c_Q$ balances variance and stability appropriately.
+\end{itemize}
+
+\subsection{Expected Trends and Interpretations}
+
+\paragraph{Effect of Trajectory Length $T$:}  
+Increasing $T$ allows for better estimation of $\overline H_T$, reducing stochastic fluctuations in the curvature estimate. We expect that the bound tightens with longer trajectories, up to the point where additional averaging yields diminishing returns.
+
+\paragraph{Effect of Hutchinson Sample Size $m$:}  
+The stochastic trace and log-determinant estimation introduces variance. Larger $m$ should reduce the stochastic error term $\epsilon$, resulting in a more stable estimate of $\widehat{\mathrm{FD}}_T$ and therefore a more reliable bound.
+
+\paragraph{Effect of Posterior Scaling $c_Q$:}  
+Increasing $c_Q$ inflates the posterior variance, increasing the KL term but potentially improving stability of the covariance inversion. We expect an intermediate value of $c_Q$ to produce the tightest practical bounds, as too small values underestimate uncertainty and too large values over-penalize KL.
+
+\paragraph{Top-subspace vs Residual Contributions:}  
+For high-dimensional models, the top-$r$ eigen-directions of $\Sigma_P$ often capture most of the prior variability. We expect $A_r$ to dominate the KL decomposition when the trajectory aligns well with the prior in these directions, whereas $R_r$ quantifies the effect of less influential directions. Observing the relative magnitudes of $A_r$ and $R_r$ helps interpret which parameters are most important for generalization.
+
+\paragraph{Comparison Across Models or Hyperparameters:}  
+By varying model architecture, trajectory length, $c_Q$, and other hyperparameters, we expect to observe consistent trends:  
+\begin{itemize}[noitemsep]
+    \item Longer trajectories and more Hutchinson samples yield more stable and tighter bounds.
+    \item Well-chosen $c_Q$ balances the trade-off between posterior variance and KL penalty.
+    \item Stronger curvature along top-subspace directions leads to a larger contribution of $A_r$, highlighting important directions in parameter space.
+\end{itemize}
+
+\paragraph{Interpretation of Bound Components:}  
+The decomposition into top-subspace, residual, and curvature terms provides insight beyond a single numerical bound:  
+\begin{itemize}[noitemsep]
+    \item Large $A_r$ suggests that the model has aligned well with the most informative prior directions.  
+    \item Large $R_r$ indicates that residual directions contribute significantly, possibly highlighting overparameterized directions.  
+    \item Large $\widehat{\mathrm{FD}}_T$ indicates regions of high curvature along the trajectory, reflecting sensitivity to parameter perturbations.
+\end{itemize}
+
+\subsection{How These Results Relate to Theory}
+
+All expected behaviors align with the theoretical reasoning:  
+\begin{itemize}[noitemsep]
+    \item Averaging Hessians along the trajectory reduces stochastic error in curvature estimation.
+    \item The KL decomposition separates dominant directions from residual ones, offering a principled way to understand generalization contributions.
+    \item Stochastic trace/log-determinant estimation allows practical computation in high dimensions while preserving statistical properties.
+    \item Trends in $c_Q$, $T$, and $m$ reflect the trade-offs predicted by the PAC-Bayes bound formulation: tighter bounds require careful balance between data fit, posterior uncertainty, and estimation variance.
+\end{itemize}
+
+\paragraph{Summary:}  
+Even before explicit computation, the expected results will allow us to interpret generalization performance in terms of parameter-space geometry, posterior uncertainty, and curvature information. They provide an informative, interpretable lens on the PAC-Bayes bound and guide the choice of hyperparameters and model design.
+
+\section{Empirical Analysis and Interpretation of Results}
+
+\subsection{Overview of Obtained Results}
+
+After completing the implementation of the trajectory-aware PAC-Bayesian bound, we conducted multiple independent training runs with random seeds ranging from 42 to 46. Each run consisted of a short optimization trajectory of length $T = 20$, where we collected statistics necessary for the bound estimation, including empirical risks, posterior and prior divergences, and curvature-based trajectory quantities.
+
+The key summary of the results is reproduced in Table~\ref{tab:summary_results}.
+
+\begin{table}[H]
+\centering
+\caption{Summary of results across different random seeds. Risks are reported as mean values over samples; the bounds are computed using both the baseline isotropic and trajectory-aware formulations.}
+\label{tab:summary_results}
+\begin{tabular}{ccccccccccc}
+\toprule
+Seed & Train Risk & Val Risk & Test Risk & Traj. Bound & Base Bound & KL Div. & Traj. Len. & Gap (Traj) & Gap (Base) & Val Acc. \\
+\midrule
+42 & 0.0075 & 0.0058 & 0.0042 & 1.279 & 0.264 & 34793 & 20 & 1.275 & 0.260 & 0.999 \\
+43 & 0.0072 & 0.0074 & 0.0041 & 1.277 & 0.264 & 34728 & 20 & 1.273 & 0.260 & 0.998 \\
+44 & 0.0071 & 0.0069 & 0.0042 & 1.279 & 0.264 & 34805 & 20 & 1.274 & 0.260 & 0.998 \\
+45 & 0.0069 & 0.0094 & 0.0043 & 1.276 & 0.264 & 34700 & 20 & 1.272 & 0.260 & 0.996 \\
+46 & 0.0063 & 0.0127 & 0.0041 & 1.280 & 0.263 & 34904 & 20 & 1.275 & 0.259 & 0.996 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The training loss exhibited stable convergence with a final standard deviation of less than $10^{-4}$ across the final iterations, confirming that the optimizer reached a stationary point. Final training and validation accuracies were consistently above 99.8\%, indicating excellent empirical generalization.
+
+\subsection{Decomposition of the KL Divergence}
+
+The Kullback--Leibler divergence between the posterior $Q$ and prior $P$ decomposes into several additive terms related to variance scaling, curvature alignment, and mean displacement:
+\[
+\mathrm{KL}(Q \,\|\, P) = \frac{1}{2}\left( \mathrm{tr}\left(\Sigma_P^{-1}\Sigma_Q\right) - \log \det \left(\Sigma_P^{-1}\Sigma_Q\right) - d + (\mu_P - \mu_Q)^\top \Sigma_P^{-1}(\mu_P - \mu_Q) \right),
+\]
+where $d$ denotes the parameter dimension.
+
+In our results, the \emph{trace term} contributed approximately 94.4\% of the total KL value, while other terms such as the log-determinant and mean displacement were comparatively negligible. This implies that the posterior covariance $\Sigma_Q$ differs from the prior $\Sigma_P$ mainly through isotropic scaling, rather than through a rotation or reorientation in parameter space. In other words, the optimizer modified the magnitude of uncertainty but not its directionality. 
+
+This behaviour is consistent with the training convergence: since the loss surface is locally flat and isotropic near convergence, the optimizer trajectory explores only a narrow region, leading to uniform variance amplification.
+
+\subsection{Bound Tightness and Unexpected Behaviour}
+
+The expected outcome of incorporating trajectory information is a \emph{tighter} PAC-Bayes bound, i.e.,
+\[
+B_{\text{traj}} = \widehat{R}(f) + \sqrt{\frac{\mathrm{KL}(Q\,\|\,P) + \log(1/\delta)}{2n}} \le B_{\text{base}},
+\]
+where $\widehat{R}(f)$ is the empirical risk and $n$ the number of samples.
+
+However, in our experiments, we observed the opposite: the trajectory-based bound gap ($\approx 1.27$) was significantly larger than the baseline bound gap ($\approx 0.26$), corresponding to an apparent \textbf{worsening by about 390\%}. This suggests that the trajectory-aware estimation currently \emph{overestimates} the uncertainty contribution, rather than tightening it.
+
+There are several possible explanations:
+
+\begin{enumerate}
+    \item \textbf{Short trajectory length.} The current trajectory length $T = 20$ may be insufficient for stable estimation of the average curvature $\overline{H}_T$, leading to high-variance estimates of $\mathrm{tr}(H_t)$ and thus inflated KL terms.
+    \item \textbf{Improper posterior scaling.} The posterior variance scaling parameter $c_Q$ may have been set too high, magnifying the trace term artificially.
+    \item \textbf{Finite-sample noise.} Hutchinson-based stochastic trace estimation uses a small number of random vectors, which can introduce bias in the curvature estimate. This would directly increase the KL and make the bound looser.
+    \item \textbf{Implementation error.} There is a possibility that the trajectory averaging or covariance computation step was implemented incorrectly (for example, missing normalization by $T$). This should be explicitly checked in the code.
+\end{enumerate}
+
+\subsection{Expected Behaviour and Possible Discrepancies}
+
+Theoretically, under correct implementation, the trajectory-aware bound should become tighter as:
+\begin{enumerate}
+    \item the trajectory length $T$ increases,
+    \item the step size $\eta_t$ decreases (improving smoothness),
+    \item and the posterior variance scaling $c_Q$ is tuned to minimize $\mathrm{KL}(Q\,\|\,P)$.
+\end{enumerate}
+
+Therefore, we expected to observe:
+\[
+B_{\text{traj}} \le B_{\text{base}},
+\]
+reflecting a more data-dependent posterior that adapts to the geometry of the optimization path. The current deviation from this expectation likely originates from one or more of the implementation or estimation factors described above.
+
+\subsection{Suggested Next Steps for Further Analysis}
+
+To validate and extend the empirical analysis, we propose several additional experiments:
+
+\begin{itemize}
+    \item \textbf{Longer trajectories:} Repeat the experiment with $T \in \{50, 100, 200\}$ to verify the stability of curvature estimates and the convergence of bound values.
+    \item \textbf{Simpler baseline case:} Compare against a purely isotropic Gaussian prior and posterior pair on synthetic two-dimensional data, to visually inspect the relationship between curvature and bound tightness.
+    \item \textbf{Hyperparameter sweep:} Vary the posterior scaling parameter $c_Q \in \{0.1, 0.5, 1.0\}$ and evaluate its effect on $\mathrm{KL}(Q\,\|\,P)$ and the bound.
+    \item \textbf{Variance estimation validation:} Increase the number of Hutchinson probe vectors $m$ to confirm whether the trace estimate stabilizes.
+    \item \textbf{Implementation verification:} Explicitly check whether the empirical covariance matrices and KL decomposition follow the exact mathematical definitions, ensuring correct normalization and averaging across $T$.
+\end{itemize}
+
+Finally, additional metrics—such as the evolution of $\mathrm{KL}(Q_t \,\|\, P)$ along the trajectory, and per-epoch curvature statistics—would enable a finer-grained analysis of how the bound evolves during optimization.
+
+\subsection{Conclusion of Empirical Section}
+
+Overall, the results show that the model converged smoothly and generalized well empirically, but the trajectory-aware PAC-Bayesian bound did not achieve the expected improvement in tightness. This is likely due to high variance in curvature estimation or an incorrect implementation detail. The next steps will focus on verifying the implementation, refining parameter choices, and extending the analysis to longer and more stable trajectories.
+
+\section{Extended Empirical Analysis and Diagnostic Interpretation}
+
+\subsection{Overview of Results}
+
+Our parameter sweep explores the sensitivity of the PAC-Bayesian trajectory bound with respect to four main hyperparameters: trajectory length $T$, posterior scaling $c_Q$, regularization strength $\lambda$, and Hutchinson sample size $m$. 
+
+Training dynamics are stable across all configurations, with final accuracies exceeding $99.8\%$ and negligible variance in training loss ($\sigma^2_{\text{loss}} \approx 10^{-4}$), indicating successful convergence of the optimizer.
+
+However, contrary to theoretical expectations, the \emph{trajectory-based bound} $\mathcal{B}_{\text{traj}}$ is consistently looser than the baseline bound $\mathcal{B}_{\text{base}}$. Specifically, we observe a mean gap ratio exceeding $300\times$, and in extreme cases, a ratio surpassing $5000\times$. This discrepancy is primarily driven by an anomalously high Kullback–Leibler divergence term.
+
+\subsection{KL Divergence and Bound Decomposition}
+
+The decomposition of the KL term reveals that the trace component dominates the bound:
+\begin{equation}
+    \mathrm{KL}(Q \Vert P) = \frac{1}{2} \left( \mathrm{Tr}(\Sigma_P^{-1}\Sigma_Q) - \log|\Sigma_P^{-1}\Sigma_Q| - d + (\mu_P - \mu_Q)^\top \Sigma_P^{-1}(\mu_P - \mu_Q) \right),
+\end{equation}
+with the trace term contributing approximately $94.4\%$ of the total KL value.
+
+Empirically, we find
+\[
+\mathrm{KL}_{\text{traj}} \approx 6.1 \times 10^6 \pm 2.8 \times 10^7, \qquad 
+\mathrm{KL}_{\text{base}} \approx 1.93 \pm 0.47,
+\]
+implying a ratio of $\sim 3.2 \times 10^6$. Such a discrepancy strongly suggests that either the covariance $\Sigma_Q$ or its scaling constant $c_Q$ is being over-amplified in the implementation.
+
+\subsection{Parameter Sensitivity and Scaling Behavior}
+
+Varying the posterior scaling factor $c_Q$ yields a near power-law dependence of the trajectory gap:
+\begin{equation}
+    \text{gap}_{\text{traj}} \propto c_Q^{0.90}, \qquad R^2 = 0.997.
+\end{equation}
+While a monotonic relationship is theoretically plausible, the magnitude of the scaling indicates that $\Sigma_Q$ may not be normalized by trajectory length $T$ or batch variance, leading to uncontrolled inflation of the posterior variance.
+
+Regularization $\lambda$ exerts the expected stabilizing influence:
+\[
+\lambda \uparrow \quad \Rightarrow \quad \text{gap}_{\text{traj}} \downarrow,
+\]
+confirming that the penalization mechanism is at least partially effective. Conversely, neither $T$ nor $m$ produce statistically significant effects on bound tightness ($p > 0.6$), which is inconsistent with expected variance reduction in stochastic estimators.
+
+\subsection{Diagnostic Discussion}
+
+The absence of improvement in trajectory-based bounds, coupled with the inflated KL term, implies a likely implementation issue in the posterior update or KL estimation step. Possible causes include:
+\begin{itemize}
+    \item Missing normalization by trajectory length $T$ when accumulating covariance statistics.
+    \item Incorrect scaling of the posterior variance term $\Sigma_Q$ relative to the prior.
+    \item Failure to average the Hutchinson trace estimates across samples $m$.
+\end{itemize}
+
+\subsection{Future Investigations}
+
+To validate this hypothesis, we propose:
+\begin{enumerate}
+    \item Evaluate a simplified isotropic posterior ($\Sigma_Q = I$) to compare with analytical PAC-Bayes bounds.
+    \item Separate and visualize individual KL components (trace, log-determinant, mean difference).
+    \item Conduct ablation experiments varying $T$ and $m$ with smaller learning rates to test the effect on variance stabilization.
+\end{enumerate}
+
+If the trajectory-based bound remains consistently looser after normalization, this would indicate a fundamental limitation of the empirical estimator rather than an implementation error.
